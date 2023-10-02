@@ -1261,14 +1261,12 @@ static CURLcode single_transfer(struct GlobalConfig *global,
           }
         }
 
-        if(((urlnode->flags&GETOUT_USEREMOTE) ||
-            (per->outfile && strcmp("-", per->outfile)))) {
-
+        if( (urlnode->flags & (GETOUT_USEREMOTE | GETOUT_DECODE))
+            || (per->outfile && strcmp("-", per->outfile))) {
           /*
            * We have specified a file name to store the result in, or we have
            * decided we want to use the remote file name.
            */
-
           if(!per->outfile) {
             /* extract the file name from the URL */
             result = get_url_file_name(&per->outfile, per->this_url);
@@ -1277,6 +1275,22 @@ static CURLcode single_transfer(struct GlobalConfig *global,
                      " from the URL to use for storage");
               break;
             }
+            if (urlnode->flags & GETOUT_DECODE) {
+                // save unencoded and use that if it fails? 
+                // for now just report and bail on error
+                char *decoded = NULL;
+                result = get_decoded(&decoded, per->outfile, strlen(per->outfile), NULL);
+                if(result) {
+                  if (decoded) 
+                    free(decoded);
+                  errorf(global, "Failed to extract a sensible file name"
+                         " from the URL to use for storage");
+                  break;
+                }
+                free(per->outfile);
+                per->outfile = decoded;
+            }
+
             if(!*per->outfile && !config->content_disposition) {
               errorf(global, "Remote file name has no length");
               result = CURLE_WRITE_ERROR;

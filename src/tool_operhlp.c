@@ -29,6 +29,7 @@
 #define ENABLE_CURLX_PRINTF
 /* use our own printf() functions */
 #include "curlx.h"
+#include "escape.h"
 
 #include "tool_cfgable.h"
 #include "tool_doswin.h"
@@ -174,6 +175,37 @@ fail:
   curl_url_cleanup(uh);
   curl_free(path);
   return result;
+}
+
+/* Unescapes percent encoded characters in the given string of given length,
+ * in the same manner as curl_easy_unescape except that errors return
+ * a CURLcode rather than NULL.
+ *
+ * Returns a pointer to a malloced string with length given in *olen.
+ * If olen == NULL, no output length is stored.
+ */
+CURLcode get_decoded(char **decoded, const char *encoded, int length, int *olen)
+{
+  char *str = NULL;
+  CURLcode res;
+  if(length >= 0) {
+    size_t inputlen = (size_t)length;
+    size_t outputlen;
+    res = Curl_urldecode(encoded, inputlen, &str, &outputlen,
+                                  REJECT_NADA);
+    if(res)
+      return res;
+
+    if(olen) {
+      if(outputlen <= (size_t) INT_MAX)
+        *olen = curlx_uztosi(outputlen);
+      else
+        /* too large to return in an int, fail! */
+        Curl_safefree(str);
+    }
+  }
+  *decoded = str;
+  return res;
 }
 
 /* Extracts the name portion of the URL.

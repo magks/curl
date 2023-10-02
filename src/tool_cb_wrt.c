@@ -38,6 +38,7 @@
 #include "tool_msgs.h"
 #include "tool_cb_wrt.h"
 #include "tool_operate.h"
+#include "tool_operhlp.h"
 
 #include "memdebug.h" /* keep this as LAST include */
 
@@ -61,6 +62,19 @@ bool tool_create_output_file(struct OutStruct *outs,
   DEBUGASSERT(outs);
   DEBUGASSERT(config);
   global = config->global;
+
+  if (config->state.urlnode->flags & GETOUT_DECODE) {
+    char *decoded = NULL;
+    if (get_decoded(&decoded, fname, strlen(fname), NULL)){
+      errorf(global, "Failed to decode a sensible file name"
+             " from the URL to use for storage.");
+      if (decoded) 
+        free(decoded);
+      return FALSE;
+    }
+    fname = decoded;
+  }
+
   if(!fname || !*fname) {
     warnf(global, "Remote filename has no length");
     return FALSE;

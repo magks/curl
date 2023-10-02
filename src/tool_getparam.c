@@ -332,6 +332,8 @@ static const struct LongShort aliases[]= {
   {"Oa", "remote-name-all",          ARG_BOOL},
   {"Ob", "output-dir",               ARG_STRING},
   {"Oc", "clobber",                  ARG_BOOL},
+  {"Od", "remote-name-decode",       ARG_BOOL},
+  {"Oe", "remote-name-decode-all",   ARG_BOOL},
   {"p",  "proxytunnel",              ARG_BOOL},
   {"P",  "ftp-port",                 ARG_STRING},
   {"q",  "disable",                  ARG_BOOL},
@@ -347,6 +349,7 @@ static const struct LongShort aliases[]= {
   {"v",  "verbose",                  ARG_BOOL},
   {"V",  "version",                  ARG_BOOL},
   {"w",  "write-out",                ARG_STRING},
+  {"W",  "remote-name-decode",       ARG_BOOL},
   {"x",  "proxy",                    ARG_STRING},
   {"xa", "preproxy",                 ARG_STRING},
   {"X",  "request",                  ARG_STRING},
@@ -2317,6 +2320,9 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
          --buffer but is mostly used in the negative form: --no-buffer */
       config->nobuffer = longopt ? !toggle : TRUE;
       break;
+    case 'W': /* (wget-like behavior) --remote-name-decode */
+      // map to O options
+      subletter = 'd'; // act like Od --remote-name-decode
     case 'O': /* --remote-name */
       if(subletter == 'a') { /* --remote-name-all */
         config->default_node_flags = toggle?GETOUT_USEREMOTE:0;
@@ -2328,6 +2334,14 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
       }
       else if(subletter == 'c') { /* --clobber / --no-clobber */
         config->file_clobber_mode = toggle ? CLOBBER_ALWAYS : CLOBBER_NEVER;
+        break;
+      }
+      /*  else if(subletter == 'd') { // --remote-name-decode 
+       *  // fall through to 'o'
+       *  } 
+       */
+      else if(subletter == 'e') { /* --remote-name-decode-all */
+        config->default_node_flags = toggle?(GETOUT_USEREMOTE|GETOUT_DECODE):0;
         break;
       }
       /* FALLTHROUGH */
@@ -2371,12 +2385,13 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         GetStr(&url->outfile, nextarg);
         url->flags &= ~GETOUT_USEREMOTE; /* switch off */
       }
-      else {
+      else { // can be O or W (remote-name, remote-name-decode
         url->outfile = NULL; /* leave it */
-        if(toggle)
-          url->flags |= GETOUT_USEREMOTE;  /* switch on */
-        else
-          url->flags &= ~GETOUT_USEREMOTE; /* switch off */
+        int decodeFlagIfSet = 'd' == subletter ? GETOUT_DECODE : 0;  
+        if(toggle) /* switch on */
+          url->flags |= GETOUT_USEREMOTE | decodeFlagIfSet;
+        else /* switch off */
+          url->flags &= ~GETOUT_USEREMOTE & ~decodeFlagIfSet;
       }
       url->flags |= GETOUT_OUTFILE;
     }
